@@ -322,6 +322,24 @@ const run = async () => {
     process.exit(1);
   }
 
+  // SKIP_BATCH=true builds only the non-batch circuits.
+  //
+  // Why this exists: the batch variants need much larger ptau (2^19-2^20)
+  // than their base circuits (2^15-2^17), and every public Powers-of-Tau
+  // mirror now returns 403 to anonymous callers. Because ptau is collected
+  // and downloaded for ALL selected circuits BEFORE any circuit is
+  // processed, one unobtainable batch ptau aborts the whole run -- so a base
+  // circuit whose ptau is present on disk still cannot be built.
+  //
+  // With SKIP_BATCH the batch variants are left out entirely, which lets the
+  // 2-in/2-out path be built from genuine ceremony files alone. Tokens that
+  // actually submit 10-in/10-out batch proofs need the batch keys, so leave
+  // this unset for a full build.
+  const skipBatch = /^(true|1|yes)$/i.test(process.env.SKIP_BATCH || '');
+  if (skipBatch) {
+    console.log('SKIP_BATCH is set: building non-batch circuits only.');
+  }
+
   // Download all PTAU files that we need
   var allPtaus = new Set();
   for (const [circuit, { ptau, batchPtau }] of circuitsArray) {
@@ -330,7 +348,7 @@ const run = async () => {
     }
 
     allPtaus.add(ptau);
-    if (batchPtau) {
+    if (batchPtau && !skipBatch) {
       allPtaus.add(batchPtau);
     }
   }
@@ -355,7 +373,7 @@ const run = async () => {
       await Promise.race(activePromises);
     }
 
-    if (batchPtau) {
+    if (batchPtau && !skipBatch) {
       const pcBatchPromise = processCircuit(circuit + '_batch', batchPtau, skipSolidityGeneration);
       activePromises.add(pcBatchPromise);
 
