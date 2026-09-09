@@ -17,4 +17,4 @@ pragma circom 2.2.2;
 
 include "./lib/check-nullifiers-value-base.circom";
 
-component main { public [ nullifiers, outputCommitments, root, enabled ] } = CheckNullifiersInputsOutputsValue(10, 1, 64);
+component main { public [ nullifiers, outputCommitments, root, enabled, recipient ] } = CheckNullifiersInputsOutputsValue(10, 1, 64);

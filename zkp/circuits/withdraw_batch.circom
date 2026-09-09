@@ -17,4 +17,4 @@ pragma circom 2.2.2;
 
 include "./lib/check-inputs-outputs-value-base.circom";
 
-component main { public [ inputCommitments, outputCommitments ] } = CheckInputsOutputsValue(10, 1);
+component main { public [ inputCommitments, outputCommitments, recipient ] } = CheckInputsOutputsValue(10, 1);

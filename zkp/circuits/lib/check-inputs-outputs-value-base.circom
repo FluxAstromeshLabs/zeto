@@ -41,6 +41,9 @@ template CheckInputsOutputsValue(nInputs, nOutputs) {
   signal input outputValues[nOutputs];
   signal input outputSalts[nOutputs];
   signal input outputOwnerPublicKeys[nOutputs][2];
+  // See check-nullifiers-value-base.circom: the ERC20 payee, made public by
+  // the withdraw circuits so the contract binds it via the pairing check.
+  signal input recipient;
   signal output out;
 
   // derive the sender's public key from the secret input
@@ -86,5 +89,9 @@ template CheckInputsOutputsValue(nInputs, nOutputs) {
   greaterEqThan === 1;
 
   // return the remainder as output
+  // Must be constrained or circom drops it from the verifying key.
+  signal recipientBound;
+  recipientBound <== recipient * recipient;
+
   out <== sumInputs - sumOutputs;
 }

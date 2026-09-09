@@ -47,6 +47,11 @@ template CheckNullifiersInputsOutputsValue(nInputs, nOutputs, nSMTLevels) {
   signal input outputValues[nOutputs];
   signal input outputSalts[nOutputs];
   signal input outputOwnerPublicKeys[nOutputs][2];
+  // The address that receives the ERC20 on a withdrawal. Declared public by
+  // the withdraw circuits so the contract supplies it from calldata and the
+  // pairing check binds it: a stolen proof pays the address it was proven
+  // for, or it does not verify at all.
+  signal input recipient;
   signal output out;
 
   // derive the sender's public key from the secret input
@@ -98,6 +103,13 @@ template CheckNullifiersInputsOutputsValue(nInputs, nOutputs, nSMTLevels) {
   greaterEqThan = GreaterEqThan(100)(in <== [sumInputs, sumOutputs]);
 
   greaterEqThan === 1;
+
+  // `recipient` must participate in at least one constraint. A public signal
+  // that no constraint references is optimised away and never reaches the
+  // verifying key -- the contract would then pass a value the verifier
+  // ignores, which looks like a working fix and binds nothing.
+  signal recipientBound;
+  recipientBound <== recipient * recipient;
 
   out <== sumInputs - sumOutputs;
 }
