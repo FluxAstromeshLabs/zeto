@@ -60,7 +60,9 @@ interface IZetoConstants {
         uint256 amount,
         uint256[] inputs,
         uint256 output,
-        address indexed submitter,
+        // The address paid, which is bound into the withdraw proof and is
+        // NOT necessarily the transaction submitter -- anyone may submit.
+        address indexed recipient,
         bytes data
     );
 }

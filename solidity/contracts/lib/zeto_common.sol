@@ -44,6 +44,9 @@ abstract contract ZetoCommon is IZeto, Ownable2StepUpgradeable {
     ///      Replaces the previous `require(..., "Invalid proof")` strings
     ///      so callers can match a typed error in their error decoders.
     error InvalidProof();
+    /// @dev Withdrawal recipient was the zero address, which would burn the
+    ///      notes and send the ERC20 nowhere.
+    error InvalidRecipient();
 
     function __ZetoCommon_init(
         string calldata name_,

@@ -40,6 +40,7 @@ abstract contract ZetoFungibleNullifier is ZetoFungible {
         uint256 amount,
         uint256[] memory nullifiers,
         uint256 output,
+        address recipient,
         bytes memory proof
     ) internal override returns (uint256[] memory, Commonlib.Proof memory) {
         // Decode the proof to extract root and proof structure. Root
@@ -64,6 +65,12 @@ abstract contract ZetoFungibleNullifier is ZetoFungible {
             root,
             output
         );
+        // `recipient` is the last public signal, so it is written here rather
+        // than threaded through _fillWithdrawPublicInputs: one more argument
+        // in that frame overflows the Yul stack ("too deep by 1 slot"), which
+        // is why this builder is split into single-purpose helpers at all.
+        // Slot order verified against withdraw_nullifier.sym (signal 8 of 8).
+        publicInputs[size - 1] = uint256(uint160(recipient));
 
         return (publicInputs, proofStruct);
     }
@@ -71,7 +78,8 @@ abstract contract ZetoFungibleNullifier is ZetoFungible {
     function _calculateWithdrawPublicInputsSize(
         uint256[] memory nullifiers
     ) internal pure returns (uint256 size) {
-        size = (nullifiers.length * 2) + 3; // nullifiers, enabled flags, amount, root, output
+        // nullifiers, enabled flags, amount, root, output, recipient
+        size = (nullifiers.length * 2) + 4;
     }
 
     function _fillWithdrawPublicInputs(
@@ -95,7 +103,8 @@ abstract contract ZetoFungibleNullifier is ZetoFungible {
         // Populate enabled flags
         piIndex = _fillWithdrawEnabledFlags(publicInputs, nullifiers, piIndex);
 
-        // Copy output commitment
+        // Copy output commitment. The recipient occupies the final slot and
+        // is written by the caller (see above).
         _fillWithdrawOutput(publicInputs, output, piIndex);
     }
 

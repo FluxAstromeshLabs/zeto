@@ -312,6 +312,12 @@ abstract contract ZetoFungible is ZetoLockable, ReentrancyGuardUpgradeable {
      * @param amount The amount of ERC20 tokens to be withdrawn.
      * @param inputs The UTXOs to be spent.
      * @param output The UTXO to be minted.
+     * @param recipient The address that receives the ERC20. Bound into the
+     *      proof as a public signal, so a proof copied out of the mempool
+     *      still pays this address -- and fails to verify if altered. This
+     *      is deliberately NOT msg.sender: the payee must be fixed at
+     *      proving time, while anyone may still submit the transaction, so
+     *      gasless relaying keeps working.
      * @param proof The proof of the withdrawal.
      * @param data Additional data to be passed to the withdrawal
      *      function.
@@ -322,9 +328,16 @@ abstract contract ZetoFungible is ZetoLockable, ReentrancyGuardUpgradeable {
         uint256 amount,
         uint256[] calldata inputs,
         uint256 output,
+        address recipient,
         bytes calldata proof,
         bytes calldata data
     ) public nonReentrant {
+        // Not a soundness requirement -- a zero recipient yields a valid
+        // proof that burns the notes and sends the ERC20 nowhere. Rejecting
+        // it turns a silent loss of funds into a revert.
+        if (recipient == address(0)) {
+            revert InvalidRecipient();
+        }
         uint256[] memory outputs = new uint256[](1);
         outputs[0] = output;
         uint256[] memory lockedOutputs;
@@ -349,6 +362,7 @@ abstract contract ZetoFungible is ZetoLockable, ReentrancyGuardUpgradeable {
                 amount,
                 paddedInputs,
                 output,
+                recipient,
                 proof
             );
         ZetoFungibleStorage.Layout storage $ = ZetoFungibleStorage.layout();
@@ -378,7 +392,7 @@ abstract contract ZetoFungible is ZetoLockable, ReentrancyGuardUpgradeable {
         // success and reverts cleanly when the underlying call fails or
         // returns false.
         ZetoFungibleStorage.layout().erc20Token.safeTransfer(
-            msg.sender,
+            recipient,
             amount
         );
 
@@ -387,7 +401,7 @@ abstract contract ZetoFungible is ZetoLockable, ReentrancyGuardUpgradeable {
         // tests built before the CEI reorder. Event emission is a pure
         // log and does not affect security; the nullifier state was
         // already committed above.
-        emit UTXOWithdraw(amount, inputs, output, msg.sender, data);
+        emit UTXOWithdraw(amount, inputs, output, recipient, data);
     }
 
     function emitTransferEvent(
@@ -438,13 +452,15 @@ abstract contract ZetoFungible is ZetoLockable, ReentrancyGuardUpgradeable {
         uint256 amount,
         uint256[] memory inputs,
         uint256 output,
+        address recipient,
         bytes memory proof
     ) internal virtual returns (uint256[] memory, Commonlib.Proof memory) {
         Commonlib.Proof memory proofStruct = abi.decode(
             proof,
             (Commonlib.Proof)
         );
-        uint256 size = (inputs.length + 1 + 1); // inputs, output, and amount
+        // inputs, output, amount and recipient
+        uint256 size = (inputs.length + 1 + 1 + 1);
 
         uint256[] memory publicInputs = new uint256[](size);
         uint256 piIndex = 0;
@@ -459,6 +475,10 @@ abstract contract ZetoFungible is ZetoLockable, ReentrancyGuardUpgradeable {
 
         // copy output commitment
         publicInputs[piIndex++] = output;
+
+        // copy the ERC20 recipient (last public signal, matching the
+        // circuit's `public [...]` ordering)
+        publicInputs[piIndex++] = uint256(uint160(recipient));
 
         return (publicInputs, proofStruct);
     }
