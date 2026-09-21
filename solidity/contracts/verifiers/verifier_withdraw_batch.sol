@@ -25,7 +25,7 @@ contract Groth16Verifier_WithdrawBatch is Verifier_WithdrawBatch {
         uint[2] calldata _pC,
         uint[] calldata _pubSignals
     ) public view returns (bool) {
-        uint256[12] memory fixedSizeInputs;
+        uint256[13] memory fixedSizeInputs;
         for (uint256 i = 0; i < fixedSizeInputs.length; i++) {
             fixedSizeInputs[i] = _pubSignals[i];
         }
