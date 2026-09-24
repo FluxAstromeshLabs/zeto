@@ -237,6 +237,11 @@ export async function prepareNullifierWithdrawProof(
   output: UTXO,
   root: BigInt,
   merkleProof: BigInt[][],
+  // The ERC20 payee, bound into the proof as a public signal. The withdraw
+  // circuits in this fork require it, and withdraw() must be passed the same
+  // address or the proof fails verification. Optional so callers for other
+  // flavours are unchanged.
+  recipient?: string,
 ) {
   const nullifiers = _nullifiers.map(
     (nullifier) => nullifier.hash,
@@ -265,6 +270,7 @@ export async function prepareNullifierWithdrawProof(
     outputValues,
     outputSalts: [output.salt || 0n],
     outputOwnerPublicKeys,
+    ...(recipient !== undefined ? { recipient: BigInt(recipient) } : {}),
   };
   let circuit = await loadCircuit("withdraw_nullifier");
   let { provingKeyFile } = loadProvingKeys("withdraw_nullifier");
