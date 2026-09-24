@@ -55,18 +55,6 @@ contract Zeto_AnonEncNullifier is Zeto_AnonNullifier {
         __ZetoAnonEncNullifier_init(name, symbol, initialOwner, verifiers);
     }
 
-    error MintDisabled();
-
-    /// @dev Minting is disabled on this flavour and everything built on it.
-    ///      Zeto shields value, it does not issue it: {ZetoCommon-mint} takes
-    ///      raw commitments with no proof and no payment, so on a
-    ///      deposit-backed pool the owner could create notes paid out of other
-    ///      users' deposits. Notes enter only through deposit(), which uses the
-    ///      internal _mint() and is unaffected.
-    function mint(uint256[] calldata, bytes calldata) public pure override {
-        revert MintDisabled();
-    }
-
     function __ZetoAnonEncNullifier_init(
         string calldata name_,
         string calldata symbol_,

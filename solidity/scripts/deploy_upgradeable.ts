@@ -6,7 +6,26 @@ export const logger: Logger<ILogObj> = new Logger({ name: "deploy_upgradeable", 
 import erc20Module from "../ignition/modules/erc20";
 import { getLinkedContractFactory, deploy } from "./lib/common";
 
-export async function deployFungible(tokenName: string, erc20Address?: string) {
+// initialize() by full signature. Zeto_AnonEncNullifierKyc overloads it (the
+// extra overload takes a mintEnabled flag), and the upgrades plugin rejects an
+// ambiguous bare name. The 4-argument form is the same on every flavour.
+const INITIALIZE_4 =
+  "initialize(string,string,address,(address,address,address,address,address,address,address,address,address))";
+const INITIALIZE_WITH_MINT_FLAG =
+  "initialize(string,string,address,(address,address,address,address,address,address,address,address,address),bool)";
+
+export interface DeployOptions {
+  // Set only for a flavour whose initialize() takes a mintEnabled flag
+  // (Zeto_AnonEncNullifierKyc). Omitted, the pool uses the 4-argument
+  // initializer and minting stays disabled.
+  mintEnabled?: boolean;
+}
+
+export async function deployFungible(
+  tokenName: string,
+  erc20Address?: string,
+  options: DeployOptions = {},
+) {
   let erc20: any;
   if (!erc20Address) {
     ({ erc20 } = await ignition.deploy(erc20Module));
@@ -22,10 +41,15 @@ export async function deployFungible(tokenName: string, erc20Address?: string) {
   const { deployer, args, libraries } =
     await verifiersDeployer.deployDependencies();
 
+  const withMintFlag = options.mintEnabled !== undefined;
+  if (withMintFlag) {
+    args.push(options.mintEnabled);
+  }
+
   let zetoFactory;
   const opts = {
     kind: "uups",
-    initializer: "initialize",
+    initializer: withMintFlag ? INITIALIZE_WITH_MINT_FLAG : INITIALIZE_4,
     unsafeAllow: ["delegatecall"],
   };
   if (libraries) {

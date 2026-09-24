@@ -53,6 +53,44 @@ contract Zeto_AnonEncNullifierKyc is Zeto_AnonEncNullifier, Registry {
         __ZetoAnonEncNullifierKyc_init(name, symbol, initialOwner, verifiers);
     }
 
+    error MintDisabled();
+
+    /// @dev Initialize and choose whether the owner may {mint}. Fixed for the
+    ///      life of the pool: nothing can change it after initialization.
+    ///
+    ///      Leave it false for a deposit-backed pool. {mint} takes raw
+    ///      commitments with no proof and no payment, so an owner with minting
+    ///      enabled can create notes paid out of other users' deposits.
+    function initialize(
+        string calldata name,
+        string calldata symbol,
+        address initialOwner,
+        IZetoInitializable.VerifiersInfo calldata verifiers,
+        bool mintEnabled_
+    ) public initializer {
+        __ZetoAnonEncNullifierKyc_init(name, symbol, initialOwner, verifiers);
+        ZetoAnonEncNullifierKycStorage.layout().mintEnabled = mintEnabled_;
+    }
+
+    /// @dev Whether {mint} is enabled on this pool. False unless the pool was
+    ///      initialized through the overload above with `mintEnabled_` true.
+    function mintEnabled() public view returns (bool) {
+        return ZetoAnonEncNullifierKycStorage.layout().mintEnabled;
+    }
+
+    /// @dev Owner mint, gated on {mintEnabled}. Disabled by default: Zeto
+    ///      shields value, it does not issue it. deposit() creates notes
+    ///      through the internal _mint() and is unaffected.
+    function mint(
+        uint256[] calldata utxos,
+        bytes calldata data
+    ) public override onlyOwner {
+        if (!ZetoAnonEncNullifierKycStorage.layout().mintEnabled) {
+            revert MintDisabled();
+        }
+        _mint(utxos, data);
+    }
+
     function __ZetoAnonEncNullifierKyc_init(
         string calldata name_,
         string calldata symbol_,
@@ -85,5 +123,23 @@ contract Zeto_AnonEncNullifierKyc is Zeto_AnonEncNullifier, Registry {
         uint256[] memory extras = new uint256[](1);
         extras[0] = getIdentitiesRoot();
         return extras;
+    }
+}
+
+/// @dev ERC-7201 (`erc7201:zeto.storage.ZetoAnonEncNullifierKyc`): this
+///      flavour's own state. Slot =
+///      `keccak256(abi.encode(uint256(keccak256(bytes("zeto.storage.ZetoAnonEncNullifierKyc"))) - 1)) & ~bytes32(uint256(0xff))`.
+library ZetoAnonEncNullifierKycStorage {
+    struct Layout {
+        bool mintEnabled;
+    }
+
+    bytes32 private constant STORAGE_LOCATION =
+        0x76f139b888110b31c39002ddcf0058476dac7565f0df459c7537ff43fedc2300;
+
+    function layout() internal pure returns (Layout storage $) {
+        assembly {
+            $.slot := STORAGE_LOCATION
+        }
     }
 }

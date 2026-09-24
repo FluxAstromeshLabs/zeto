@@ -2,6 +2,7 @@
 process.env.TEST_DEPLOY_SCRIPTS = "true";
 
 import {
+  DeployOptions,
   deployFungible as deployFungibleUpgradeable,
   deployNonFungible as deployNonFungibleUpgradeable,
 } from "../../scripts/deploy_upgradeable";
@@ -14,7 +15,10 @@ import { logger } from "./utils";
 import { ethers } from "hardhat";
 import { assertEip170Compliant } from "./eip170";
 
-export async function deployZeto(tokenName: string) {
+export async function deployZeto(
+  tokenName: string,
+  options: DeployOptions = {},
+) {
   await assertEip170Compliant(tokenName);
   let zeto, erc20, deployer;
 
@@ -39,10 +43,9 @@ export async function deployZeto(tokenName: string) {
   if (process.env.USE_FACTORY !== "true") {
     logger.debug("Deploying as upgradeable contracts");
     // setup via the deployment scripts
-    const deployFunc = isFungible
-      ? deployFungibleUpgradeable
-      : deployNonFungibleUpgradeable;
-    const result = await deployFunc(tokenName);
+    const result = isFungible
+      ? await deployFungibleUpgradeable(tokenName, undefined, options)
+      : await deployNonFungibleUpgradeable(tokenName);
     ({ deployer, zeto, erc20 } = result as any);
   } else {
     logger.debug('Deploying as cloneable contracts using "ZetoTokenFactory"');

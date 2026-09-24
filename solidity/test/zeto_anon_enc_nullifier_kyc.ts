@@ -98,7 +98,12 @@ describe(
     Charlie = await newUser(c);
     unregistered = await newUser(e);
 
-    ({ deployer, zeto, erc20 } = await deployZeto("Zeto_AnonEncNullifierKyc"));
+    // mintEnabled: these tests seed balances with mint(), which the flavour
+    // disables by default. The disabled path is covered by
+    // zeto_anon_enc_nullifier_kyc_mint_disabled.ts.
+    ({ deployer, zeto, erc20 } = await deployZeto("Zeto_AnonEncNullifierKyc", {
+      mintEnabled: true,
+    }));
 
     const tx2 = await zeto
       .connect(deployer)
@@ -318,6 +323,7 @@ describe(
       ZERO_UTXO,
       root.bigInt(),
       inflatedWithdrawMTPs,
+      Alice.ethAddress,
     );
 
     // Alice withdraws her UTXOs to ERC20 tokens
@@ -327,6 +333,7 @@ describe(
         3,
         _withdrawNullifiers,
         withdrawCommitments[0],
+        Alice.ethAddress,
         encodeToBytesForWithdraw(root.bigInt(), withdrawEncodedProof),
         "0x",
       );
@@ -583,6 +590,7 @@ describe(
         withdrawChangeUTXO,
         root.bigInt(),
         merkleProofs,
+        Alice.ethAddress,
       );
 
     // Alice withdraws her UTXOs to ERC20 tokens
@@ -592,6 +600,7 @@ describe(
         80,
         nullifiers,
         outputCommitments[0],
+        Alice.ethAddress,
         encodeToBytesForWithdraw(root.bigInt(), encodedProof),
         "0x",
       );
@@ -699,6 +708,7 @@ describe(
           withdrawChangeUTXO,
           root.bigInt(),
           merkleProofs,
+          Alice.ethAddress,
         );
 
       // Alice withdraws her UTXOs to ERC20 tokens
@@ -709,6 +719,7 @@ describe(
             10,
             nullifiers,
             outputCommitments[0],
+            Alice.ethAddress,
             encodeToBytesForWithdraw(root.bigInt(), encodedProof),
             "0x",
           ),
