@@ -47,6 +47,11 @@ abstract contract ZetoCommon is IZeto, Ownable2StepUpgradeable {
     /// @dev Withdrawal recipient was the zero address, which would burn the
     ///      notes and send the ERC20 nowhere.
     error InvalidRecipient();
+    /// @dev The backing ERC20 moved a different amount than requested: a
+    ///      fee-on-transfer, rebasing or otherwise non-standard token. Notes
+    ///      are minted and burned 1:1 against `amount`, so accepting any other
+    ///      delta would leave the pool under-backed.
+    error ERC20AmountMismatch(uint256 expected, uint256 actual);
 
     function __ZetoCommon_init(
         string calldata name_,

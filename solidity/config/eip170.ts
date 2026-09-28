@@ -16,6 +16,8 @@ export const EIP170_EXEMPT_CONTRACTS: readonly string[] = [
   "Zeto_AnonEncNullifierKyc",
   "Zeto_AnonEncNullifierNonRepudiation",
   "Zeto_AnonNullifierBurnable",
+  // Crossed the limit when deposit/withdraw gained exact-amount ERC20 checks.
+  "Zeto_AnonNullifierKyc",
   "Zeto_AnonNullifierQurrency",
   "Groth16Verifier_AnonEncNullifierNonRepudiationBatch",
 ] as const;

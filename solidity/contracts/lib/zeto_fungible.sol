@@ -268,6 +268,13 @@ abstract contract ZetoFungible is ZetoLockable, ReentrancyGuardUpgradeable {
         bytes calldata data
     ) public nonReentrant {
         // ---- Checks ----
+        // The deposit circuit proves exactly 2 outputs, and only those 2 reach
+        // the public inputs below, yet _mint commits the whole array. Any entry
+        // past index 1 would be minted unproven and unpaid, so reject any other
+        // length.
+        if (outputs.length != 2) {
+            revert UTXOArrayTooLarge(2);
+        }
         validateOutputs(outputs);
 
         // verifies that the output UTXOs match the claimed value
@@ -296,14 +303,7 @@ abstract contract ZetoFungible is ZetoLockable, ReentrancyGuardUpgradeable {
         _mint(outputs, data);
 
         // ---- Interactions ----
-        // SafeERC20 handles non-standard tokens that return no value on
-        // success and reverts cleanly when the underlying call fails or
-        // returns false.
-        ZetoFungibleStorage.layout().erc20Token.safeTransferFrom(
-            msg.sender,
-            address(this),
-            amount
-        );
+        _pullExact(msg.sender, amount);
     }
 
     /**
@@ -388,13 +388,7 @@ abstract contract ZetoFungible is ZetoLockable, ReentrancyGuardUpgradeable {
         processInputsAndOutputs(paddedInputs, paddedOutputs, false);
 
         // ---- Interactions ----
-        // SafeERC20 handles non-standard tokens that return no value on
-        // success and reverts cleanly when the underlying call fails or
-        // returns false.
-        ZetoFungibleStorage.layout().erc20Token.safeTransfer(
-            recipient,
-            amount
-        );
+        _payExact(recipient, amount);
 
         // Emitted after the transfer so that the on-chain event order
         // remains ERC20.Transfer → UTXOWithdraw, matching listeners and
@@ -402,6 +396,37 @@ abstract contract ZetoFungible is ZetoLockable, ReentrancyGuardUpgradeable {
         // log and does not affect security; the nullifier state was
         // already committed above.
         emit UTXOWithdraw(amount, inputs, output, recipient, data);
+    }
+
+    /// @dev Pull `amount` of the backing ERC20 into the pool and require the
+    ///      pool's balance to rise by exactly that. A deposit mints notes worth
+    ///      `amount`, so a token that delivers less (a transfer fee) would mint
+    ///      notes the pool cannot pay out. SafeERC20 covers tokens that return
+    ///      no value or false.
+    function _pullExact(address from, uint256 amount) private {
+        IERC20 token = ZetoFungibleStorage.layout().erc20Token;
+        uint256 before = token.balanceOf(address(this));
+        token.safeTransferFrom(from, address(this), amount);
+        uint256 received = token.balanceOf(address(this)) - before;
+        if (received != amount) {
+            revert ERC20AmountMismatch(amount, received);
+        }
+    }
+
+    /// @dev Pay `amount` of the backing ERC20 to `to` and require that the
+    ///      pool lost exactly `amount` and `to` gained exactly `amount`. A
+    ///      withdrawal burns notes worth `amount`; any other delta means the
+    ///      recipient was short-changed or the pool paid more than it burned.
+    function _payExact(address to, uint256 amount) private {
+        IERC20 token = ZetoFungibleStorage.layout().erc20Token;
+        uint256 poolBefore = token.balanceOf(address(this));
+        uint256 toBefore = token.balanceOf(to);
+        token.safeTransfer(to, amount);
+        uint256 sent = poolBefore - token.balanceOf(address(this));
+        uint256 received = token.balanceOf(to) - toBefore;
+        if (sent != amount || received != amount) {
+            revert ERC20AmountMismatch(amount, received);
+        }
     }
 
     function emitTransferEvent(
