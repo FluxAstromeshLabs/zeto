@@ -49,5 +49,10 @@ template CheckNullifiers(nInputs) {
     isHashEqual = IsEqual()(in <== [nullifiers[i], (1 - isNullifierZero) * calculatedHash /* ensure when nullifier is 0, compare with 0 */]);
 
     isHashEqual === 1;
+
+    // An empty slot (nullifier == 0) skips the hash check above, which would
+    // leave its value a free private witness. Pin it to zero so padding can
+    // never contribute to the sum of inputs.
+    isNullifierZero * values[i] === 0;
   }
 }
