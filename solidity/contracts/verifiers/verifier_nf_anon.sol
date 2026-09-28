@@ -26,6 +26,9 @@ contract Groth16Verifier_NfAnon is Verifier_NfAnon {
         uint[] calldata _pubSignals
     ) public view returns (bool) {
         uint256[2] memory fixedSizeInputs;
+        // Exact arity: extra signals past the fixed count would otherwise be
+        // ignored by the pairing check. Hardening; see pending-issues C2.
+        require(_pubSignals.length == fixedSizeInputs.length, "invalid public signal count");
         for (uint256 i = 0; i < fixedSizeInputs.length; i++) {
             fixedSizeInputs[i] = _pubSignals[i];
         }
