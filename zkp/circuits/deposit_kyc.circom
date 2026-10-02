@@ -32,13 +32,17 @@ template DepositKyc(nOutputs, nIdentitiesSMTLevels) {
   // for the outputs are included in the identities
   // Sparse Merkle Tree with the root `identitiesRoot`.
   var ownerPublicKeys[nOutputs][2];
+  var kycEnabled[nOutputs];
   var isCommitmentZero[nOutputs];
   for (var i = 0; i < nOutputs; i++) {
     isCommitmentZero[i] = IsZero()(in <== outputCommitments[i]);
     ownerPublicKeys[i][0] = (1 - isCommitmentZero[i]) * outputOwnerPublicKeys[i][0];
     ownerPublicKeys[i][1] = (1 - isCommitmentZero[i]) * outputOwnerPublicKeys[i][1];
+    // Padding is a ZERO COMMITMENT, never a zero public key. See the comment
+    // in Kyc(): (0, 1) and (0, p-1) are real keys an attacker can own.
+    kycEnabled[i] = 1 - isCommitmentZero[i];
   }
-  Kyc(nOutputs, nIdentitiesSMTLevels)(publicKeys <== ownerPublicKeys, root <== identitiesRoot, merkleProof <== identitiesMerkleProof);
+  Kyc(nOutputs, nIdentitiesSMTLevels)(publicKeys <== ownerPublicKeys, root <== identitiesRoot, merkleProof <== identitiesMerkleProof, enabled <== kycEnabled);
 
   out <== Deposit(nOutputs)(outputCommitments <== outputCommitments, outputValues <== outputValues, outputSalts <== outputSalts, outputOwnerPublicKeys <== outputOwnerPublicKeys);
 }

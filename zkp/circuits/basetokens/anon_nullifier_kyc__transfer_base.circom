@@ -111,13 +111,22 @@ template transfer(nInputs, nOutputs, nUTXOSMTLevels, nIdentitiesSMTLevels) {
   // Sparse Merkle Tree with the root `identitiesRoot`.
   var ownerPublicKeys[nOutputs + 1][2];
   ownerPublicKeys[0] = [inputOwnerPubKeyAx, inputOwnerPubKeyAy];
+  // Slot 0 is the SENDER and is always checked: they are spending real notes,
+  // so they must be a registered identity.
+  var kycEnabled[nOutputs + 1];
+  kycEnabled[0] = 1;
 
   var isCommitmentZero[nOutputs];
   for (var i = 0; i < nOutputs; i++) {
     isCommitmentZero[i] = IsZero()(in <== outputCommitments[i]);
     ownerPublicKeys[i+1][0] = (1 - isCommitmentZero[i]) * outputOwnerPublicKeys[i][0];
     ownerPublicKeys[i+1][1] = (1 - isCommitmentZero[i]) * outputOwnerPublicKeys[i][1];
+    // An output slot is padding only when its COMMITMENT is zero. Deriving
+    // this from the public key instead let a key at Ax == 0 -- the identity
+    // point (0, 1) or (0, p-1), both real curve points -- skip its membership
+    // check entirely.
+    kycEnabled[i+1] = 1 - isCommitmentZero[i];
   }
 
-  Kyc(nOutputs + 1, nIdentitiesSMTLevels)(publicKeys <== ownerPublicKeys, root <== identitiesRoot, merkleProof <== identitiesMerkleProof);
+  Kyc(nOutputs + 1, nIdentitiesSMTLevels)(publicKeys <== ownerPublicKeys, root <== identitiesRoot, merkleProof <== identitiesMerkleProof, enabled <== kycEnabled);
 }
