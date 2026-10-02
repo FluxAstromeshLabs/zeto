@@ -90,6 +90,30 @@ library ZetoLockableLib {
             (IZetoLockableCapability.ZetoCreateLockArgs)
         );
 
+        // Refuse to lock on a pool that cannot unlock.
+        //
+        // createLock proves its transition with `inputsLocked = false`, so
+        // verifyProof selects the ordinary transfer verifier and this call
+        // SUCCEEDS even when no lock verifier was ever deployed. Both exits
+        // (spendLock, cancelLock) go through _transferLocked with
+        // `inputsLocked = true`, which selects lockVerifier / batchLockVerifier
+        // -- a call into address(0) that always reverts. Without this check the
+        // notes are locked permanently and no one, including the owner, can
+        // release them.
+        //
+        // BOTH verifiers are required, not just the one this particular
+        // transition would use: the exit picks between them from the input and
+        // output counts at spend time, which are not known here. Allowing a
+        // lock when only one is present would leave the one-way door open for
+        // whichever size resolves to the missing verifier.
+        ZetoCommonStorage.Layout storage common = ZetoCommonStorage.layout();
+        if (
+            address(common.lockVerifier) == address(0) ||
+            address(common.batchLockVerifier) == address(0)
+        ) {
+            revert IZetoLockableCapability.LockingUnavailable();
+        }
+
         bytes32 lockId = _computeLockId(args.txId);
         if (ZetoLockableStorage.layout().locks[lockId].owner != address(0)) {
             revert IZetoLockableCapability.DuplicateLock(lockId);

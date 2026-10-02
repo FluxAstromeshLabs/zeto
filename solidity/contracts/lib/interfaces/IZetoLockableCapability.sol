@@ -57,6 +57,20 @@ interface IZetoLockableCapability is ILockableCapability {
     /// @dev Thrown when computeLockId would collide with an already-active lock.
     error DuplicateLock(bytes32 lockId);
 
+    /// @dev Thrown by `createLock` on a pool that has no locked-input
+    ///      verifier, i.e. `lockVerifier` is the zero address.
+    ///
+    ///      Locking on such a pool is a ONE-WAY DOOR. `createLock` proves its
+    ///      transition with `inputsLocked = false`, so it selects the ordinary
+    ///      transfer verifier and succeeds; both exits (`spendLock`,
+    ///      `cancelLock`) prove with `inputsLocked = true` and select
+    ///      `lockVerifier`, so they call address(0) and always revert. The
+    ///      notes would be locked permanently with no way out.
+    ///
+    ///      Refusing up front turns an irreversible loss of funds into a
+    ///      revert that costs the caller only gas.
+    error LockingUnavailable();
+
     // ----------------------------------------------------------------------
     // ABI-encoded argument payloads carried by the generic *Args parameters
     // ----------------------------------------------------------------------
