@@ -43,5 +43,14 @@ template CheckHashes(nInputs) {
     var isHashEqual;
     isHashEqual = IsEqual()(in <== [commitmentHashes[i], (1 - isCommitmentZero) * calculatedHash /* ensure when commitment is 0, compare with 0 */]);
     isHashEqual === 1;
+
+    // An empty slot (commitment == 0) skips the hash check above, which would
+    // leave its value a free private witness. Pin it to zero so padding can
+    // never contribute to the sum of inputs. This is the non-nullifier twin of
+    // the constraint in check-nullifiers.circom; without it a proof whose
+    // input slots are all empty passes CheckSum/GreaterEqThan against value
+    // nobody deposited, and storage/base.sol skips zero inputs so the chain
+    // raises no objection either.
+    isCommitmentZero * commitmentInputs[i].value === 0;
   }
 }
